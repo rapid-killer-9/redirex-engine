@@ -18,8 +18,7 @@ export class UrlService {
         [longUrl, tempKey]
       );
 
-      // FIX: Access the first element of the rows array
-      const insertedId = res.rows?.id;
+      const insertedId = res.rows[0]?.id;
 
       if (insertedId === undefined || insertedId === null) {
         throw new Error("ID not found in database response");
@@ -52,8 +51,7 @@ export class UrlService {
 
     const res = await this.db.query('SELECT long_url FROM urls WHERE short_key = $1', [shortKey]);
     
-    // FIX: Access the first element here as well
-    const longUrl = res.rows?.long_url;
+    const longUrl = res.rows[0]?.long_url;
 
     if (longUrl) {
       await this.redis.set(`url:${shortKey}`, longUrl, 'EX', 86400);
