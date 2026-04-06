@@ -2,7 +2,7 @@
 
 # Initial installation and infrastructure spin-up
 setup:
-	cp .env.example .env || true
+	cp backend/.env.example backend/.env || true
 	docker compose up -d
 	cd backend && npm install
 	cd frontend && npm install
