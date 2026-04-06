@@ -4,6 +4,7 @@
 setup:
 	cp backend/.env.example backend/.env || true
 	docker compose up -d
+	cd shared && npm install && npm run build
 	cd backend && npm install
 	cd frontend && npm install
 
@@ -27,5 +28,7 @@ stop:
 # Deep clean of the environment
 clean:
 	docker compose down -v
+	rm -rf shared/node_modules shared/dist
 	rm -rf backend/node_modules frontend/node_modules
 	rm -rf backend/dist
+	
