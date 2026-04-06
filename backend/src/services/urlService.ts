@@ -13,7 +13,7 @@ export class UrlService {
       await client.query('BEGIN');
 
       // Insert with a temp key first to get the auto-generated id
-      const tempKey = `tmp_${Math.random().toString(36).substring(2, 10)}`;
+      const tempKey = `t_${Math.random().toString(36).substring(2, 9)}`;
 
       const res = await client.query(
         `INSERT INTO urls (long_url, short_key, user_id, title, description, expires_at)

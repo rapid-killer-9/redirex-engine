@@ -1,5 +1,7 @@
 import { Worker, Job } from 'bullmq';
-import { db, redis } from '../config/infra.js'; // Note the .js extension for ESM
+import { db, redis } from '../config/infra.js'; 
+import dotenv from 'dotenv';
+dotenv.config();
 
 console.log('🚀 Analytics Worker Started');
 

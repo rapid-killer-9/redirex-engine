@@ -45,6 +45,7 @@ export const handleShorten = (urlService: UrlService) =>
       return reply.status(201).send(result);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to shorten URL';
+      console.error('[shorten error]', err);
       return reply.status(500).send({ error: message });
     }
   };

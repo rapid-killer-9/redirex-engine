@@ -4,13 +4,12 @@ export const encode = (num: any): string => {
   if (num === undefined || num === null) {
     throw new Error("Encoder received undefined or null value");
   }
-  
+
   let str = "";
   let n = BigInt(num);
   const base = BigInt(62);
 
-  // FIX: Return the first character "0" if the ID is 0
-  if (n === 0n) return ALPHABET;
+  if (n === 0n) return ALPHABET[0]; // "0", not the whole string
 
   while (n > 0n) {
     str = ALPHABET[Number(n % base)] + str;
