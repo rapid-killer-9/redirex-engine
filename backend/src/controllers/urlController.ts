@@ -2,6 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { UrlService } from '../services/urlService.js';
 import { Queue } from 'bullmq';
 import { authenticate } from '../middleware/auth.js';
+import { verifyJwt } from '../services/authService.js'; 
 
 // ── Public redirect ───────────────────────────────────────────────────────
 export const handleRedirect = (urlService: UrlService, analyticsQueue: Queue) =>
@@ -29,20 +30,23 @@ export const handleShorten = (urlService: UrlService) =>
       url: string; title?: string; description?: string; expiresAt?: string;
     };
 
-    // Optional auth – if token present, attach to url; else anonymous
-    const authHeader = req.headers.authorization;
     let userId: string | null = null;
+    const authHeader = req.headers.authorization;
     if (authHeader?.startsWith('Bearer ')) {
       try {
-        const { verifyJwt } = await import('../services/authService.js');
         const payload = verifyJwt<{ userId: string }>(authHeader.slice(7));
         userId = payload.userId;
-      } catch { /* anonymous */ }
+        console.log('[shorten] authenticated as userId:', userId);
+      } catch (e) {
+        console.warn('[shorten] token invalid:', e);
+      }
+    } else {
+      console.log('[shorten] no auth header, anonymous');
     }
 
     try {
       const result = await urlService.shortenUrl(url, userId, { title, description, expiresAt });
-      return reply.status(201).send(result);
+      return reply.status(201).send({ ...result, userId });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to shorten URL';
       console.error('[shorten error]', err);
