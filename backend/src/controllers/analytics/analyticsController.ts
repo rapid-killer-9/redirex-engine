@@ -1,8 +1,8 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
+import { ShortKeyParamSchema } from '@redirex/shared';
 import { UrlService } from '../../services/urlService.js';
-import { ShortKeyParamSchema } from '../../types/schemas.js';
-import { validateParams } from '../../utils/validate.js';
 import { authenticate } from '../../middleware/auth.js';
+import { validateParams } from '../../utils/validation.js';
 
 // GET /api/urls/:shortKey/analytics
 export const getAnalytics = (urlService: UrlService) =>
@@ -17,4 +17,3 @@ export const getAnalytics = (urlService: UrlService) =>
     if (!analytics) return reply.status(404).send({ error: 'Not found or not yours' });
     return reply.send(analytics);
   };
-  

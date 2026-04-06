@@ -1,7 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { AuthService } from '../../services/authService.js';
-import { RegisterSchema, LoginSchema } from '../../types/schemas.js';
-import { validateBody } from '../../utils/validate.js';
+import { RegisterSchema, LoginSchema } from '@redirex/shared';
+import { validateBody } from '../../utils/validation.js';
 
 export const register = (authService: AuthService) =>
   async (req: FastifyRequest, reply: FastifyReply) => {
@@ -30,3 +30,4 @@ export const login = (authService: AuthService) =>
       return reply.status(401).send({ error: message });
     }
   };
+  

@@ -1,15 +1,20 @@
-import { z } from 'zod';
+import { ZodSchema } from 'zod';
 
-export const ShortenUrlSchema = z.object({
-  url: z.string()
-    .url({ message: "Invalid URL format" })
-    .startsWith("http", { message: "URL must include http or https" })
-    .max(2048, { message: "URL is too long" })
-});
+type ValidationResult<T> =
+  | { data: T;    error: null   }
+  | { data: null; error: string };
 
-export const RedirectParamSchema = z.object({
-  shortKey: z.string()
-    .min(1)
-    .max(10)
-    .regex(/^[0-9a-zA-Z]+$/, { message: "Invalid characters in short key" })
-});
+function validate<T>(schema: ZodSchema<T>, data: unknown): ValidationResult<T> {
+  const result = schema.safeParse(data);
+  if (!result.success) {
+    const message = result.error.errors
+      .map(e => `${e.path.join('.')}: ${e.message}`)
+      .join(', ');
+    return { data: null, error: message };
+  }
+  return { data: result.data, error: null };
+}
+
+export const validateBody   = validate;
+export const validateQuery  = validate;
+export const validateParams = validate;

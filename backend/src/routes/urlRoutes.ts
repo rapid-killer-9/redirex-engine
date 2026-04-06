@@ -1,9 +1,9 @@
 import { FastifyInstance } from 'fastify';
 import { Queue } from 'bullmq';
-import { UrlService } from '../../services/urlService.js';
-import * as urlController        from '../../controllers/url/urlController.js';
-import * as urlMgmtController    from '../../controllers/url/urlManagementController.js';
-import * as analyticsController  from '../../controllers/analytics/analyticsController.js';
+import { UrlService } from '../services/urlService.js';
+import * as urlController        from '../controllers/url/urlController.js';
+import * as urlMgmtController    from '../controllers/url/urlManagementController.js';
+import * as analyticsController  from '../controllers/analytics/analyticsController.js';
 
 export function urlRoutes(app: FastifyInstance, urlService: UrlService, analyticsQueue: Queue) {
   // ── Public ──────────────────────────────────────────────────────────────

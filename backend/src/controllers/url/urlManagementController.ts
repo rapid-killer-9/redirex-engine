@@ -1,23 +1,23 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
+import { UpdateUrlSchema, ShortKeyParamSchema, PaginationSchema } from '@redirex/shared';
 import { UrlService } from '../../services/urlService.js';
-import { UpdateUrlSchema, ShortKeyParamSchema, PaginationSchema } from '../../types/schemas.js';
-import { validateBody, validateParams, validateQuery } from '../../utils/validate.js';
 import { authenticate } from '../../middleware/auth.js';
+import { validateBody, validateParams, validateQuery } from "../../utils/validation.js";
 
-// GET /api/urls — list all URLs for authenticated user
+// GET /api/urls
 export const listUrls = (urlService: UrlService) =>
   async (req: FastifyRequest, reply: FastifyReply) => {
     const user = await authenticate(req, reply);
     if (!user) return;
 
-    const { data: query, error: queryError } = validateQuery(PaginationSchema, req.query);
-    if (queryError) return reply.status(400).send({ error: queryError });
+    const { data: query, error } = validateQuery(PaginationSchema, req.query);
+    if (error) return reply.status(400).send({ error });
 
     const result = await urlService.getUserUrls(user.userId, query.page, query.limit);
     return reply.send(result);
   };
 
-// GET /api/urls/:shortKey — get single URL with recent clicks
+// GET /api/urls/:shortKey
 export const getUrl = (urlService: UrlService) =>
   async (req: FastifyRequest, reply: FastifyReply) => {
     const user = await authenticate(req, reply);
@@ -31,7 +31,7 @@ export const getUrl = (urlService: UrlService) =>
     return reply.send(url);
   };
 
-// PATCH /api/urls/:shortKey — update URL metadata
+// PATCH /api/urls/:shortKey
 export const updateUrl = (urlService: UrlService) =>
   async (req: FastifyRequest, reply: FastifyReply) => {
     const user = await authenticate(req, reply);
@@ -71,3 +71,4 @@ export const deleteUrl = (urlService: UrlService) =>
     if (!deleted) return reply.status(404).send({ error: 'Not found or not yours' });
     return reply.status(204).send();
   };
+  

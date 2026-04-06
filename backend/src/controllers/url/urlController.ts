@@ -1,9 +1,9 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { UrlService } from '../../services/urlService.js';
 import { Queue } from 'bullmq';
-import { ShortenUrlSchema, ShortKeyParamSchema } from '../../types/schemas.js';
-import { validateBody, validateParams } from '../../utils/validate.js';
+import { ShortenUrlSchema, ShortKeyParamSchema } from '@redirex/shared';
+import { UrlService } from '../../services/urlService.js';
 import { verifyJwt } from '../../services/authService.js';
+import { validateBody, validateParams } from '../../utils/validation.js';
 
 // POST /api/shorten — public, but attaches userId if token present
 export const shortenUrl = (urlService: UrlService) =>
@@ -11,16 +11,13 @@ export const shortenUrl = (urlService: UrlService) =>
     const { data, error } = validateBody(ShortenUrlSchema, req.body);
     if (error) return reply.status(400).send({ error });
 
-    // Optional auth
     let userId: string | null = null;
     const authHeader = req.headers.authorization;
     if (authHeader?.startsWith('Bearer ')) {
       try {
         const payload = verifyJwt<{ userId: string }>(authHeader.slice(7));
         userId = payload.userId;
-      } catch {
-        // anonymous — invalid token is not a hard error here
-      }
+      } catch { /* anonymous */ }
     }
 
     try {
