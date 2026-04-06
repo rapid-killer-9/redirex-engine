@@ -1,124 +1,57 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { UrlService } from '../services/urlService.js';
+import { UrlService } from '../../services/urlService.js';
 import { Queue } from 'bullmq';
-import { authenticate } from '../middleware/auth.js';
-import { verifyJwt } from '../services/authService.js'; 
+import { ShortenUrlSchema, ShortKeyParamSchema } from '../../types/schemas.js';
+import { validateBody, validateParams } from '../../utils/validate.js';
+import { verifyJwt } from '../../services/authService.js';
 
-// ── Public redirect ───────────────────────────────────────────────────────
-export const handleRedirect = (urlService: UrlService, analyticsQueue: Queue) =>
+// POST /api/shorten — public, but attaches userId if token present
+export const shortenUrl = (urlService: UrlService) =>
   async (req: FastifyRequest, reply: FastifyReply) => {
-    const { shortKey } = req.params as { shortKey: string };
-    const longUrl = await urlService.getLongUrl(shortKey);
+    const { data, error } = validateBody(ShortenUrlSchema, req.body);
+    if (error) return reply.status(400).send({ error });
 
-    if (longUrl) {
-      analyticsQueue.add('log-click', {
-        shortKey,
-        ip:      req.ip,
-        ua:      req.headers['user-agent'],
-        referer: req.headers['referer'],
-      });
-      return reply.redirect(longUrl);
-    }
-
-    return reply.status(404).send({ error: 'Not Found' });
-  };
-
-// ── Shorten (public OR authenticated) ────────────────────────────────────
-export const handleShorten = (urlService: UrlService) =>
-  async (req: FastifyRequest, reply: FastifyReply) => {
-    const { url, title, description, expiresAt } = req.body as {
-      url: string; title?: string; description?: string; expiresAt?: string;
-    };
-
+    // Optional auth
     let userId: string | null = null;
     const authHeader = req.headers.authorization;
     if (authHeader?.startsWith('Bearer ')) {
       try {
         const payload = verifyJwt<{ userId: string }>(authHeader.slice(7));
         userId = payload.userId;
-        console.log('[shorten] authenticated as userId:', userId);
-      } catch (e) {
-        console.warn('[shorten] token invalid:', e);
+      } catch {
+        // anonymous — invalid token is not a hard error here
       }
-    } else {
-      console.log('[shorten] no auth header, anonymous');
     }
 
     try {
-      const result = await urlService.shortenUrl(url, userId, { title, description, expiresAt });
+      const result = await urlService.shortenUrl(data.url, userId, {
+        title:       data.title,
+        description: data.description,
+        expiresAt:   data.expiresAt,
+      });
       return reply.status(201).send({ ...result, userId });
-    } catch (err: unknown) {
+    } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to shorten URL';
-      console.error('[shorten error]', err);
       return reply.status(500).send({ error: message });
     }
   };
 
-// ── List user's URLs ──────────────────────────────────────────────────────
-export const handleListUrls = (urlService: UrlService) =>
+// GET /:shortKey — public redirect
+export const redirectUrl = (urlService: UrlService, analyticsQueue: Queue) =>
   async (req: FastifyRequest, reply: FastifyReply) => {
-    const user = await authenticate(req, reply);
-    if (!user) return;
+    const { data, error } = validateParams(ShortKeyParamSchema, req.params);
+    if (error) return reply.status(400).send({ error });
 
-    const { page = '1', limit = '20' } = req.query as { page?: string; limit?: string };
-    const result = await urlService.getUserUrls(user.userId, parseInt(page, 10), Math.min(parseInt(limit, 10), 100));
-    return reply.send(result);
-  };
+    const longUrl = await urlService.getLongUrl(data.shortKey);
+    if (!longUrl) return reply.status(404).send({ error: 'Not Found' });
 
-// ── Get single URL detail + recent clicks ────────────────────────────────
-export const handleGetUrl = (urlService: UrlService) =>
-  async (req: FastifyRequest, reply: FastifyReply) => {
-    const user = await authenticate(req, reply);
-    if (!user) return;
+    analyticsQueue.add('log-click', {
+      shortKey: data.shortKey,
+      ip:       req.ip,
+      ua:       req.headers['user-agent'],
+      referer:  req.headers['referer'],
+    });
 
-    const { shortKey } = req.params as { shortKey: string };
-    const url = await urlService.getUserUrl(shortKey, user.userId);
-    if (!url) return reply.status(404).send({ error: 'Not found' });
-    return reply.send(url);
-  };
-
-// ── Update URL ────────────────────────────────────────────────────────────
-export const handleUpdateUrl = (urlService: UrlService) =>
-  async (req: FastifyRequest, reply: FastifyReply) => {
-    const user = await authenticate(req, reply);
-    if (!user) return;
-
-    const { shortKey } = req.params as { shortKey: string };
-    const { isActive, title, description, expiresAt } = req.body as {
-      isActive?: boolean; title?: string; description?: string; expiresAt?: string | null;
-    };
-
-    try {
-      const updated = await urlService.updateUrl(shortKey, user.userId, { isActive, title, description, expiresAt });
-      if (!updated) return reply.status(404).send({ error: 'Not found or not yours' });
-      return reply.send(updated);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Update failed';
-      return reply.status(400).send({ error: message });
-    }
-  };
-
-// ── Delete URL ────────────────────────────────────────────────────────────
-export const handleDeleteUrl = (urlService: UrlService) =>
-  async (req: FastifyRequest, reply: FastifyReply) => {
-    const user = await authenticate(req, reply);
-    if (!user) return;
-
-    const { shortKey } = req.params as { shortKey: string };
-    const deleted = await urlService.deleteUrl(shortKey, user.userId);
-    if (!deleted) return reply.status(404).send({ error: 'Not found or not yours' });
-    return reply.status(204).send();
-  };
-
-// ── Analytics ─────────────────────────────────────────────────────────────
-export const handleGetAnalytics = (urlService: UrlService) =>
-  async (req: FastifyRequest, reply: FastifyReply) => {
-    const user = await authenticate(req, reply);
-    if (!user) return;
-
-    const { shortKey } = req.params as { shortKey: string };
-    const analytics = await urlService.getUrlAnalytics(shortKey, user.userId);
-    if (!analytics) return reply.status(404).send({ error: 'Not found or not yours' });
-    return reply.send(analytics);
+    return reply.redirect(longUrl);
   };
   
